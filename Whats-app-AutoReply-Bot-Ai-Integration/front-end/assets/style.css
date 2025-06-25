@@ -1,0 +1,98 @@
+body {
+          background: linear-gradient(135deg, #e0eafc 0%, #cfdef3 100%);
+          min-height: 100vh;
+}
+
+.container {
+          background: #fff;
+          border-radius: 18px;
+          box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+          padding: 2rem 2.5rem;
+          margin-top: 2rem;
+}
+
+.modal-content {
+          border-radius: 18px;
+          box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.25);
+          background: #f8fafc;
+}
+
+.modal-header {
+          border-top-left-radius: 18px;
+          border-top-right-radius: 18px;
+          background: linear-gradient(90deg, #43cea2 0%, #185a9d 100%);
+          color: #fff;
+          box-shadow: 0 2px 8px rgba(24, 90, 157, 0.08);
+}
+
+.modal-title {
+          font-weight: 600;
+          letter-spacing: 1px;
+}
+
+.btn-close-white {
+          filter: invert(1);
+}
+
+#chatContent {
+          background: #e9f1fb;
+          border-radius: 12px;
+          padding: 1.5rem;
+          min-height: 300px;
+}
+
+.chat-bubble-user {
+          background: #fff;
+          color: #222;
+          border-radius: 16px 16px 4px 16px;
+          box-shadow: 0 2px 8px rgba(67, 206, 162, 0.08);
+          margin-right: 40px;
+          padding: 0.75rem 1.25rem;
+          display: inline-block;
+}
+
+.chat-bubble-ai {
+          background: linear-gradient(90deg, #43cea2 0%, #185a9d 100%);
+          color: #fff;
+          border-radius: 16px 16px 16px 4px;
+          box-shadow: 0 2px 8px rgba(24, 90, 157, 0.08);
+          margin-left: 40px;
+          padding: 0.75rem 1.25rem;
+          display: inline-block;
+}
+
+.chat-row {
+          margin-bottom: 1.2rem;
+          display: flex;
+          flex-direction: row;
+}
+
+.chat-row.user {
+          justify-content: flex-start;
+}
+
+.chat-row.ai {
+          justify-content: flex-end;
+}
+
+.btn-primary,
+.btn-success,
+.btn-info {
+          border-radius: 20px;
+          font-weight: 500;
+          letter-spacing: 0.5px;
+          box-shadow: 0 2px 8px rgba(24, 90, 157, 0.08);
+          transition: background 0.2s, box-shadow 0.2s;
+}
+
+.btn-primary:hover,
+.btn-success:hover,
+.btn-info:hover {
+          box-shadow: 0 4px 16px rgba(24, 90, 157, 0.15);
+          opacity: 0.92;
+}
+
+.dt-buttons .btn {
+          margin-right: 0.5rem;
+          margin-bottom: 0.5rem;
+}

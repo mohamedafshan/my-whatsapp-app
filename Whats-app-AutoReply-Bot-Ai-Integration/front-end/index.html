@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>WhatsApp Conversations</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <!-- DataTables CSS/JS + Buttons extension -->
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css"/>
+  <link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.4.1/css/buttons.bootstrap5.min.css"/>
+  <link rel="stylesheet" href="./assets/style.css"/>
+  <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+  <script src="https://cdn.datatables.net/buttons/2.4.1/js/dataTables.buttons.min.js"></script>
+  <script src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.bootstrap5.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
+  <script src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.html5.min.js"></script>
+  <script src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.print.min.js"></script>
+  
+</head>
+<body>
+<div class="container py-4">
+  <h3 class="text-center text-primary mb-4">Unique WhatsApp Conversations</h3>
+
+  <table class="table table-bordered" id="conversationTable">
+    <thead class="table-light">
+      <tr>
+        <th>#</th>
+        <th>Sender</th>
+        <th>Receiver</th>
+        <th>Last Message</th>
+        <th>Last Time</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<!-- 🔵 Modal -->
+<div class="modal fade" id="chatModal" tabindex="-1" aria-labelledby="chatModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable modal-lg">
+    <div class="modal-content">
+      <div class="modal-header bg-success text-white">
+        <h5 class="modal-title" id="chatModalLabel">Conversation</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body" id="chatContent" style="max-height: 500px; overflow-y: auto;">
+        <!-- Messages will be injected here -->
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+$(document).ready(function () {
+  // Load unique conversations
+  $.get('http://localhost:3000/api/messages', function (data) {
+    const tbody = $('#conversationTable tbody');
+    tbody.empty();
+
+    // 1. Find latest non-empty auth_number for each sender
+    const senderAuthMap = {};
+    data.forEach(msg => {
+      if (msg.auth_number && msg.auth_number.trim() !== '') {
+        if (
+          !senderAuthMap[msg.sender] ||
+          new Date(msg.created_at) > new Date(senderAuthMap[msg.sender].created_at)
+        ) {
+          senderAuthMap[msg.sender] = { auth_number: msg.auth_number, created_at: msg.created_at };
+        }
+      }
+    });
+
+    // 2. Group by sender only, using latest non-empty auth_number for that sender
+    const convMap = {};
+    data.forEach(msg => {
+      const key = msg.sender;
+      if (!convMap[key]) {
+        convMap[key] = [];
+      }
+      convMap[key].push(msg);
+    });
+
+    // 3. Prepare grouped conversations
+    const grouped = Object.entries(convMap).map(([sender, msgs]) => {
+      // Sort messages by created_at descending
+      msgs.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      const latest = msgs[0];
+      // Use latest non-empty auth_number for this sender, or fallback to latest message's auth_number
+      const auth_number =
+        (senderAuthMap[sender] && senderAuthMap[sender].auth_number) ||
+        (latest.auth_number && latest.auth_number.trim() !== '' ? latest.auth_number : '');
+      return {
+        sender: sender,
+        auth_number: auth_number,
+        last_message: latest.user_message || latest.ai_response || '-',
+        last_time: latest.created_at
+      };
+    });
+
+    grouped.forEach((conv, index) => {
+      const displayAuth = conv.auth_number && conv.auth_number.trim() !== '' ? conv.auth_number : 'Unknown';
+      const lastTime = conv.last_time && !isNaN(Date.parse(conv.last_time))
+        ? new Date(conv.last_time).toLocaleString()
+        : '-';
+      const row = `
+        <tr>
+          <td>${index + 1}</td>
+          <td>${conv.sender}</td>
+          <td>${displayAuth}</td>
+          <td>${conv.last_message || '-'}</td>
+          <td>${lastTime}</td>
+          <td>
+            <button class="btn btn-sm btn-primary view-btn" 
+                    data-sender="${conv.sender}" 
+                    data-auth="${conv.auth_number}">
+              View
+            </button>
+          </td>
+        </tr>
+      `;
+      tbody.append(row);
+    });
+
+    // Initialize DataTable with export buttons
+    if ($.fn.DataTable.isDataTable('#conversationTable')) {
+      $('#conversationTable').DataTable().destroy();
+    }
+    $('#conversationTable').DataTable({
+      dom: 'Bfrtip',
+      buttons: [
+        {
+          extend: 'csvHtml5',
+          text: 'Download CSV',
+          className: 'btn btn-success btn-sm'
+        },
+        {
+          extend: 'excelHtml5',
+          text: 'Download Excel',
+          className: 'btn btn-info btn-sm'
+        }
+      ],
+      ordering: true,
+      paging: true,
+      searching: true
+    });
+
+    // Handle View button click
+    $('.view-btn').on('click', function () {
+      const sender = $(this).data('sender');
+      const auth = $(this).data('auth');
+      const displayAuth = auth && auth.trim() !== '' ? auth : 'Unknown';
+
+      $('#chatModalLabel').text(`Chat between ${sender} ↔ ${displayAuth}`);
+      $('#chatContent').html('<p class="text-muted">Loading messages...</p>');
+
+      // Load all messages, then filter on frontend
+      $.get('http://localhost:3000/api/messages', function (msgs) {
+        // Only show messages between sender and resolved auth_number
+        const filtered = msgs.filter(msg =>
+          msg.sender === sender &&
+          ((msg.auth_number && msg.auth_number.trim() !== '') ? msg.auth_number : (auth || '')) === auth
+        );
+
+        const chatHtml = filtered
+          .filter(msg => msg.user_message || msg.ai_response)
+          .map(msg => {
+            const isUser = !!msg.user_message;
+            const text = isUser ? msg.user_message : msg.ai_response;
+            const rowClass = isUser ? 'chat-row user' : 'chat-row ai';
+            const bubbleClass = isUser ? 'chat-bubble-user' : 'chat-bubble-ai';
+            const time = new Date(msg.created_at).toLocaleTimeString();
+
+            return `
+              <div class="${rowClass}">
+                <div class="${bubbleClass}">
+                  ${text}
+                  <div class="small text-muted mt-1" style="font-size: 0.85em;">${time}</div>
+                </div>
+              </div>
+            `;
+          }).join('');
+
+        $('#chatContent').html(chatHtml || '<p class="text-muted">No messages found.</p>');
+        const modal = new bootstrap.Modal(document.getElementById('chatModal'));
+        modal.show();
+      });
+    });
+  });
+});
+</script>
+</body>
+</html>
